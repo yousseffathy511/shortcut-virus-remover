@@ -1,0 +1,13 @@
+# Logs produced by the tool at runtime
+*.log
+
+# Recovered files (never commit user data)
+USB-Recovered-*/
+recovered/
+
+# Windows / editor cruft
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
