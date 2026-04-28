@@ -6,7 +6,7 @@ on:
       version:
         description: Version to stamp into the executable
         required: false
-        default: 1.0.5
+        default: 1.0.6
   push:
     tags:
       - 'v*'

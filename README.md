@@ -285,10 +285,9 @@ reviewers, or people who specifically want to run the PowerShell scripts.
 - The executable requests Administrator rights because removing the
   malware service, System32 DLL, and Defender exclusions requires
   elevated Windows permissions.
-- USB cleanup is intentionally narrow: it removes fake `.lnk` shortcuts,
-  known `sysvolume` payload folders, and payload files matching the
-  `u<digits>` malware naming pattern. It does not delete arbitrary
-  `.exe` files from the USB root.
+- USB cleanup is designed for infected removable drives: it removes fake
+  shortcuts, known `sysvolume` payload folders, and common shortcut-virus
+  payload file types from the USB root.
 - Security issues should be reported using the instructions in
   [SECURITY.md](SECURITY.md).
 

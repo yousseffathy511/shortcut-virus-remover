@@ -2,6 +2,15 @@
 
 All notable changes to Shortcut Virus Remover are documented here.
 
+## v1.0.6
+
+- Restored the stronger USB root payload cleanup behavior from the
+  earlier remover versions.
+- The tool again removes common shortcut-virus payload types from the USB
+  root, including fake shortcuts, scripts, suspicious executables, and
+  HTML application payloads used by this malware family.
+- Kept the release checksum support introduced in `v1.0.5`.
+
 ## v1.0.5
 
 - Narrowed USB cleanup so it no longer deletes arbitrary root-level
