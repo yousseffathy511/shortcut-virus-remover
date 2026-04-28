@@ -5,6 +5,10 @@
 USB-Recovered-*/
 recovered/
 
+# Compiled installer (distributed via GitHub Releases, not committed)
+ShortcutVirusRemover.exe
+*.exe
+
 # Windows / editor cruft
 Thumbs.db
 Desktop.ini

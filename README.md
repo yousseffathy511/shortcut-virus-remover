@@ -10,11 +10,31 @@ malware Microsoft Defender labels as:
 
 If your USB drive's contents have been replaced by a single
 **`<DriveName>.lnk`** shortcut and a hidden `sysvolume` folder, you have
-this infection. The folder is not gone ó it is just hidden, and the
+this infection. The folder is not gone ù it is just hidden, and the
 shortcut is bait.
 
 > **Do not double-click the shortcut.** Doing so launches the malware
 > with administrator rights and infects the host PC.
+
+---
+
+## Download (one-click installer)
+
+**For non-technical users**:
+
+1. Go to the [Releases page](https://github.com/yousseffathy511/shortcut-virus-remover/releases/latest).
+2. Download `ShortcutVirusRemover.exe`.
+3. Double-click it. Click **Yes** on the Windows security prompt.
+4. Wait for it to finish. Your USB drives will be cleaned, the malware
+   will be removed from your PC, and AutoRun will be disabled to
+   prevent re-infection.
+
+That's it. No installation, no PowerShell required.
+
+> **Windows SmartScreen warning?** The installer is not code-signed,
+> so Windows may say *"Windows protected your PC"* the first time you
+> run it. Click **More info**, then **Run anyway**. This is expected
+> for any free, unsigned tool.
 
 ---
 
@@ -179,7 +199,7 @@ machine you care about. See [LICENSE](LICENSE).
 
 ## License
 
-MIT ó see [LICENSE](LICENSE).
+MIT ù see [LICENSE](LICENSE).
 
 ## Contributing
 
