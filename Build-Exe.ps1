@@ -73,7 +73,13 @@ if (-not (Test-Path -LiteralPath $output)) {
 
 $item = Get-Item -LiteralPath $output
 $hash = Get-FileHash -LiteralPath $output -Algorithm SHA256
-"$($hash.Hash)  $($item.Name)" | Set-Content -LiteralPath $checksumOutput -Encoding ASCII
+# GNU-style line: "<hex>  <basename>\n" with Unix LF — avoids CRLF issues for release uploads
+$hashLine = ('{0}  {1}' -f $hash.Hash.ToLowerInvariant(), $item.Name)
+[System.IO.File]::WriteAllText(
+    $checksumOutput,
+    $hashLine + "`n",
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 Write-Host ("Built {0} ({1:N0} bytes)" -f $item.FullName, $item.Length) -ForegroundColor Green
 Write-Host "SHA-256: $($hash.Hash)" -ForegroundColor Green
