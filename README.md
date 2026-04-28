@@ -10,7 +10,7 @@ malware Microsoft Defender labels as:
 
 If your USB drive's contents have been replaced by a single
 **`<DriveName>.lnk`** shortcut and a hidden `sysvolume` folder, you have
-this infection. The folder is not gone ù it is just hidden, and the
+this infection. The folder is not gone - it is just hidden, and the
 shortcut is bait.
 
 > **Do not double-click the shortcut.** Doing so launches the malware
@@ -48,13 +48,38 @@ GitHub Actions.
 # Build locally
 .\Build-Exe.ps1
 
-# Publish a new release from git
-git tag v1.0.0
-git push origin v1.0.0
+# Publish a new release from git, for example v1.0.3
+git tag v1.0.3
+git push origin v1.0.3
 ```
 
 When the tag is pushed, GitHub Actions builds
 `dist\ShortcutVirusRemover.exe` and uploads it to the GitHub Release.
+
+---
+
+## After Running The App
+
+If the cleanup worked, the fake shortcut and the hidden malware folder
+named `sysvolume` should be gone. Your real USB files should be visible
+again.
+
+You may still see normal Windows folders on the USB, such as:
+
+- `System Volume Information`
+- `$RECYCLE.BIN`
+
+Those folders are created by Windows. They are **not** the shortcut virus.
+Do not delete them. The app keeps protected Windows folders hidden in
+version `v1.0.2` and newer, but File Explorer may need to be closed and reopened
+before the view refreshes.
+
+To be extra safe after cleanup:
+
+1. Reboot the PC.
+2. Open **Windows Security**.
+3. Run **Virus & threat protection -> Scan options -> Microsoft Defender Offline scan**.
+4. After recovering your files, format the USB drive before using it again.
 
 ---
 
@@ -165,7 +190,11 @@ itself.
 
 ---
 
-## Recommended workflow
+## Advanced Manual Workflow
+
+Most users should download and run `ShortcutVirusRemover.exe` from the
+Releases page. This manual workflow is only for developers, security
+reviewers, or people who specifically want to run the PowerShell scripts.
 
 1. **Unplug** any other USB drives so they cannot be re-infected mid-run.
 2. Open **Windows PowerShell as Administrator**.
@@ -185,9 +214,9 @@ itself.
    ```
 
 6. After recovery, **format the USB drive** (right-click drive in
-   Explorer ? Format ? Quick Format) before using it again.
+   Explorer -> Format -> Quick Format) before using it again.
 7. Run **Microsoft Defender Offline Scan**:
-   *Windows Security ? Virus & threat protection ? Scan options ?
+   *Windows Security -> Virus & threat protection -> Scan options ->
    Microsoft Defender Antivirus (offline scan)*
 
 ---
@@ -220,7 +249,7 @@ machine you care about. See [LICENSE](LICENSE).
 
 ## License
 
-MIT ù see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
 
 ## Contributing
 
