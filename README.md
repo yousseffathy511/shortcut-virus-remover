@@ -4,6 +4,8 @@ A focused, open-source toolkit for removing the **shortcut virus**
 family that affects Windows machines and USB flash drives. This is the
 malware Microsoft Defender labels as:
 
+Developed by **Youssef Fathy** under **Widescreen** company.
+
 - `Trojan:PowerShell/Runner.PGRA!MTB`
 - `Trojan:BAT/Runner.PGRD!MTB`
 - and similar `Runner.*` variants
@@ -48,9 +50,9 @@ GitHub Actions.
 # Build locally
 .\Build-Exe.ps1
 
-# Publish a new release from git, for example v1.0.3
-git tag v1.0.3
-git push origin v1.0.3
+# Publish a new release from git, for example v1.0.4
+git tag v1.0.4
+git push origin v1.0.4
 ```
 
 When the tag is pushed, GitHub Actions builds
@@ -249,7 +251,7 @@ machine you care about. See [LICENSE](LICENSE).
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT - Copyright (c) 2026 Youssef Fathy / Widescreen. See [LICENSE](LICENSE).
 
 ## Contributing
 

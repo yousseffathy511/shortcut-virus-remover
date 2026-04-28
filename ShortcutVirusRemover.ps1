@@ -26,7 +26,8 @@
       * Trigger a Defender Quick Scan in the background.
 
 .NOTES
-    Author : Cursor / Community
+    Author : Youssef Fathy
+    Company: Widescreen
     License: MIT
 #>
 
@@ -78,7 +79,9 @@ function Write-FriendlyBanner {
 
   +------------------------------------------------------------+
   |                                                            |
-  |              SHORTCUT VIRUS REMOVER  v1.0.0                |
+  |                SHORTCUT VIRUS REMOVER                      |
+  |                                                            |
+  |        Developed by Youssef Fathy under Widescreen         |
   |                                                            |
   |   Removes the "Shortcut / Runner" malware from your PC     |
   |   and cleans every connected USB flash drive.              |

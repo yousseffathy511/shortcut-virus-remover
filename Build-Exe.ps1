@@ -61,9 +61,9 @@ Invoke-ps2exe `
     -requireAdmin `
     -title 'Shortcut Virus Remover' `
     -description 'One-click remover for the Windows shortcut virus / Runner malware family.' `
-    -company 'Shortcut Virus Remover' `
+    -company 'Widescreen' `
     -product 'Shortcut Virus Remover' `
-    -copyright 'MIT License' `
+    -copyright 'Copyright (c) 2026 Youssef Fathy / Widescreen. MIT License.' `
     -version $Version
 
 if (-not (Test-Path -LiteralPath $output)) {

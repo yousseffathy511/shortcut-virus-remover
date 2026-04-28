@@ -6,7 +6,7 @@ on:
       version:
         description: Version to stamp into the executable
         required: false
-        default: 1.0.0
+        default: 1.0.4
   push:
     tags:
       - 'v*'
@@ -51,5 +51,7 @@ jobs:
           files: dist/ShortcutVirusRemover.exe
           body: |
             Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.
+
+            Developed by Youssef Fathy under Widescreen company.
 
             Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".

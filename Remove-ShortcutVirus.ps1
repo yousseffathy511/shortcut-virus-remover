@@ -65,7 +65,8 @@
     Dry run. Reports what would be removed without changing anything.
 
 .NOTES
-    Author : Cursor / Community
+    Author : Youssef Fathy
+    Company: Widescreen
     License: MIT
     Tested on Windows 10 and Windows 11.
 #>
