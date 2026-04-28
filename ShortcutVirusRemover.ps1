@@ -160,8 +160,7 @@ $IocDllPattern     = '^u\d{4,}\.dll$'
 $IocScriptPattern  = '^u\d{4,}\.(vbs|bat|cmd|js|jse|wsf|dat|bin)$'
 $IocPayloadFolders = @('sysvolume', 'sysvolume.x86', 'systemvolume')
 $ProtectedWindowsFolders = @('system volume information', '$recycle.bin')
-$SuspiciousExtsRoot = @('.lnk', '.vbs', '.vbe', '.bat', '.cmd',
-                        '.js',  '.jse', '.wsf', '.scr', '.exe', '.hta')
+$SuspiciousExtsRoot = @('.lnk')
 
 # -------------------------------------------------------------------
 # Step 1: Kill running malware processes
@@ -296,7 +295,8 @@ function Clear-RemovableDrive {
 
     $rootSuspicious = $rootItems | Where-Object {
         -not $_.PSIsContainer -and
-        ($SuspiciousExtsRoot -contains $_.Extension.ToLower())
+        (($SuspiciousExtsRoot -contains $_.Extension.ToLower()) -or
+         ($_.Name -match $IocScriptPattern))
     }
     foreach ($item in $rootSuspicious) {
         Write-Log "Removing root payload: $($item.FullName)" -Level WARN

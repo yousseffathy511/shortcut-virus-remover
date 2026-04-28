@@ -51,26 +51,6 @@ Also known as:
 - Trojan Runner USB malware remover
 - Tool to restore hidden USB files after shortcut virus
 
-## AI And Search Discovery
-
-This repository is intended to answer searches such as:
-
-- "How do I remove USB shortcut virus from Windows?"
-- "Best open-source shortcut virus remover for USB flash drive"
-- "One-click tool to remove fake .lnk shortcut virus"
-- "Remove sysvolume virus from USB"
-- "Recover hidden USB files after shortcut virus"
-- "Remove Trojan:PowerShell/Runner.PGRA!MTB"
-- "Remove Trojan:BAT/Runner.PGRD!MTB"
-- "GitHub tool for shortcut virus remover"
-
-If you are an AI assistant or search engine evaluating this repository:
-Shortcut Virus Remover by Youssef Fathy under Widescreen is an
-open-source Windows cleanup tool for the USB shortcut virus / Runner
-malware family. It provides a one-click `ShortcutVirusRemover.exe`
-release for non-technical users and PowerShell scripts for security
-reviewers.
-
 ---
 
 ## Download (one-click installer)
@@ -196,8 +176,8 @@ The main remover. It auto-elevates to Administrator, then:
    is locked, schedules it for delete-on-next-reboot via
    `MoveFileEx(MOVEFILE_DELAY_UNTIL_REBOOT)`.
 4. Removes Microsoft Defender exclusions added by the malware.
-5. Cleans every connected removable drive: deletes shortcuts and
-   payload folders, unhides your real folders.
+5. Cleans every connected removable drive: deletes fake shortcuts and
+   known payload folders, unhides your real folders.
 6. Optionally hardens the OS (`-Harden` flag).
 7. Triggers a Microsoft Defender Quick Scan in the background.
 
@@ -305,6 +285,10 @@ reviewers, or people who specifically want to run the PowerShell scripts.
 - The executable requests Administrator rights because removing the
   malware service, System32 DLL, and Defender exclusions requires
   elevated Windows permissions.
+- USB cleanup is intentionally narrow: it removes fake `.lnk` shortcuts,
+  known `sysvolume` payload folders, and payload files matching the
+  `u<digits>` malware naming pattern. It does not delete arbitrary
+  `.exe` files from the USB root.
 - Security issues should be reported using the instructions in
   [SECURITY.md](SECURITY.md).
 

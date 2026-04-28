@@ -6,7 +6,7 @@ on:
       version:
         description: Version to stamp into the executable
         required: false
-        default: 1.0.4
+        default: 1.0.5
   push:
     tags:
       - 'v*'
@@ -42,18 +42,24 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ShortcutVirusRemover
-          path: dist/ShortcutVirusRemover.exe
+          path: |
+            dist/ShortcutVirusRemover.exe
+            dist/ShortcutVirusRemover.exe.sha256
 
       - name: Publish GitHub release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ShortcutVirusRemover.exe
+          files: |
+            dist/ShortcutVirusRemover.exe
+            dist/ShortcutVirusRemover.exe.sha256
           body: |
             Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.
 
             Developed by Youssef Fathy under Widescreen company.
 
             Open-source Windows tool for removing USB shortcut virus, fake .lnk shortcuts, hidden sysvolume payloads, Trojan:PowerShell/Runner.PGRA!MTB, and Trojan:BAT/Runner.PGRD!MTB.
+
+            A SHA-256 checksum file is attached so users can verify the downloaded executable.
 
             Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".
