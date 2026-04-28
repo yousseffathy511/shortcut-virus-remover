@@ -6,7 +6,7 @@ on:
       version:
         description: Version to stamp into the executable
         required: false
-        default: '1.0.7'
+        default: 1.0.6
   push:
     tags:
       - 'v*'
@@ -20,46 +20,65 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
 
-      - name: Resolve version string
+      - name: Resolve version
         id: version
         shell: pwsh
         run: |
           if ('${{ github.event_name }}' -eq 'push' -and '${{ github.ref_type }}' -eq 'tag') {
             $version = '${{ github.ref_name }}'.TrimStart('v')
           } else {
-            $version = '${{ github.event.inputs.version }}'
+            $version = '${{ inputs.version }}'
           }
-          echo "version=$version" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Build ShortcutVirusRemover.exe
         shell: pwsh
-        run: ./Build-Exe.ps1 -Version '${{ steps.version.outputs.version }}'
-
-      - name: Compute SHA256 of ShortcutVirusRemover.exe
-        id: hash
-        shell: pwsh
         run: |
-          $exe = 'dist/ShortcutVirusRemover.exe'
-          if (-not (Test-Path -LiteralPath $exe)) { throw "EXE not found at $exe" }
-          $h = ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash).ToLowerInvariant()
-          echo "exe_sha256=$h" >> $env:GITHUB_OUTPUT
+          ./Build-Exe.ps1 -Version '${{ steps.version.outputs.version }}'
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@v4
         with:
-          name: ShortcutVirusRemover-${{ steps.version.outputs.version }}
+          name: ShortcutVirusRemover
           path: |
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
 
+      # Use GitHub CLI for assets instead of softprops/action-gh-release  avoids
+      # "Request body length does not match content-length header" multipart bugs on windows-latest.
       - name: Publish GitHub release
         if: github.event_name == 'push' && github.ref_type == 'tag'
-        uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabced41ab8bb048 # v2.2.0
-        with:
-          files: |
-            dist/ShortcutVirusRemover.exe
-            dist/ShortcutVirusRemover.exe.sha256
-          body: "EXE SHA-256 ${{ steps.hash.outputs.exe_sha256 }} | commit ${{ github.sha }} | Youssef Fathy / Widescreen"
-          prerelease: false
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: |
+            Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.
+
+            Developed by Youssef Fathy under Widescreen company.
+
+            Open-source Windows tool for removing USB shortcut virus, fake .lnk shortcuts, hidden sysvolume payloads, Trojan:PowerShell/Runner.PGRA!MTB, and Trojan:BAT/Runner.PGRD!MTB.
+
+            A SHA-256 checksum file is attached so users can verify the downloaded executable.
+
+            Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".
+        run: |
+          $repo = '${{ github.repository }}'
+          $tag = '${{ github.ref_name }}'
+          $exe = Join-Path 'dist' 'ShortcutVirusRemover.exe'
+          $sha = Join-Path 'dist' 'ShortcutVirusRemover.exe.sha256'
+          $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+          $env:RELEASE_NOTES.Trim() | Set-Content -LiteralPath $notesFile -Encoding utf8
+
+          gh release view $tag --repo $repo 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release delete $tag --repo $repo --yes
+          }
+
+          gh release create $tag `
+            --repo $repo `
+            --title ('Shortcut Virus Remover {0}' -f $tag) `
+            --notes-file $notesFile `
+            --verify-tag `
+            $exe $sha
