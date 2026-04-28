@@ -3,26 +3,33 @@
     One-click installer wrapper for the Shortcut Virus Remover.
 
 .DESCRIPTION
+    Synced from Remove-ShortcutVirus.ps1 - keep behavior in sync.
+
     This is a SELF-CONTAINED wrapper designed to be compiled to a single
     Windows .exe with ps2exe and the -RequireAdmin manifest flag, so a
     non-technical user can:
 
-      1. Download ShortcutVirusRemover.exe
+      1. Right-click ShortcutVirusRemover.exe -> Properties -> Unblock
       2. Double-click it
       3. Click "Yes" on the Windows UAC prompt
       4. Wait for the cleanup to finish
 
     The wrapper inlines the same logic as Remove-ShortcutVirus.ps1 so the
-    compiled exe does not depend on any other file being present next to it.
+    compiled exe does not depend on any other file being present next to
+    it. Behavior must match Remove-ShortcutVirus.ps1; future updates
+    should be ported mechanically.
 
-    Cleanup performed (always with -Harden):
-      * Stop running malware processes (rundll32 ...IdllEntry, sysvolume scripts).
+    Cleanup performed (always with -Harden, never with -Force):
+      * Create a System Restore checkpoint (best effort).
+      * Detect host threats and prompt once with a 10s auto-Yes timeout.
+      * Stop running malware processes (rundll32 ...IdllEntry, sysvolume).
       * Stop and delete the u<digits> Windows service + its registry key.
-      * Delete u<digits>.dll from C:\Windows\System32 (delete-on-reboot fallback).
+      * Quarantine u<digits>.dll from C:\Windows\System32 to
+        %ProgramData%\ShortcutVirusRemover\Quarantine\<timestamp>\.
       * Remove Defender exclusions added by the malware.
-      * Clean every connected removable drive: delete shortcuts and the
-        sysvolume payload folder, unhide the user's real folders.
-      * Disable AutoRun, show hidden files, enable Defender ASR rules.
+      * Clean every connected removable drive.
+      * Disable AutoRun, show hidden files, enable Defender ASR rules
+        (only if Defender is alive).
       * Trigger a Defender Quick Scan in the background.
 
 .NOTES
@@ -51,7 +58,38 @@ function Get-RunBaseDirectory {
 }
 
 $BaseDir = Get-RunBaseDirectory
-$LogPath = Join-Path $env:TEMP 'shortcut-virus-remover.log'
+
+# -------------------------------------------------------------------
+# Resolve runtime log + quarantine paths under %ProgramData%
+# -------------------------------------------------------------------
+function Initialize-RuntimePaths {
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $programData = $env:ProgramData
+    if (-not $programData) { $programData = 'C:\ProgramData' }
+
+    $appRoot       = Join-Path $programData 'ShortcutVirusRemover'
+    $logsDir       = Join-Path $appRoot 'Logs'
+    $quarantineDir = Join-Path (Join-Path $appRoot 'Quarantine') $stamp
+
+    foreach ($d in @($appRoot, $logsDir)) {
+        if (-not (Test-Path -LiteralPath $d)) {
+            try { New-Item -ItemType Directory -Path $d -Force | Out-Null } catch { }
+        }
+    }
+
+    $logFile = Join-Path $logsDir ("shortcut-virus-remover-$stamp.log")
+
+    [pscustomobject]@{
+        Stamp         = $stamp
+        AppRoot       = $appRoot
+        LogsDir       = $logsDir
+        LogFile       = $logFile
+        QuarantineDir = $quarantineDir
+    }
+}
+
+$script:RuntimePaths    = Initialize-RuntimePaths
+$script:LogPathResolved = $script:RuntimePaths.LogFile
 
 # -------------------------------------------------------------------
 # Logging helpers
@@ -71,7 +109,9 @@ function Write-Log {
         'ERROR' { 'Red' }
     }
     Write-Host $line -ForegroundColor $color
-    try { Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8 } catch { }
+    if ($script:LogPathResolved) {
+        try { Add-Content -LiteralPath $script:LogPathResolved -Value $line -Encoding UTF8 } catch { }
+    }
 }
 
 function Write-FriendlyBanner {
@@ -90,28 +130,30 @@ function Write-FriendlyBanner {
 
   What this tool will do automatically:
 
-    [1] Stop the malware processes that are running right now.
-    [2] Delete the malware Windows service (u<digits>).
-    [3] Delete the malware DLL from C:\Windows\System32.
-    [4] Remove the Defender exclusions the malware added.
-    [5] Clean every USB drive: delete fake shortcuts, remove
+    [1] Create a Windows System Restore checkpoint (best effort).
+    [2] Stop the malware processes that are running right now.
+    [3] Delete the malware Windows service (u<digits>).
+    [4] Quarantine the malware DLL from C:\Windows\System32 into
+        %ProgramData%\ShortcutVirusRemover\Quarantine\<timestamp>\
+        so a false positive can be recovered.
+    [5] Remove the Defender exclusions the malware added.
+    [6] Clean every USB drive: delete fake shortcuts, remove
         the hidden "sysvolume" payload, and unhide your real
         folders so you can see your files again.
-    [6] Disable AutoRun on USB drives so this cannot happen
+    [7] Disable AutoRun on USB drives so this cannot happen
         again.
-    [7] Start a Microsoft Defender Quick Scan in the background.
+    [8] Start a Microsoft Defender Quick Scan in the background.
 
   No personal files on the C: drive are touched.
   A log of everything that was done will be written to:
-    %TEMP%\shortcut-virus-remover.log
+    %ProgramData%\ShortcutVirusRemover\Logs\
 
 '@
     Write-Host $banner -ForegroundColor Cyan
 }
 
 # -------------------------------------------------------------------
-# Admin check (ps2exe -RequireAdmin already triggers UAC, this is a
-# safety net for when the .ps1 is run directly without elevation)
+# Admin check
 # -------------------------------------------------------------------
 function Test-IsAdministrator {
     $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
@@ -126,7 +168,6 @@ function Wait-ForUserExit {
     try {
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
     } catch {
-        # Some hosts don't support ReadKey; fall back to Read-Host.
         Read-Host "Press ENTER to exit" | Out-Null
     }
     exit $ExitCode
@@ -164,7 +205,111 @@ $SuspiciousExtsRoot = @('.lnk', '.vbs', '.vbe', '.bat', '.cmd',
                         '.js',  '.jse', '.wsf', '.scr', '.exe', '.hta')
 
 # -------------------------------------------------------------------
-# Step 1: Kill running malware processes
+# Defender liveness check
+# -------------------------------------------------------------------
+function Test-DefenderAlive {
+    try {
+        $status = Get-MpComputerStatus -ErrorAction Stop
+        return [bool]$status
+    } catch {
+        Write-Log "Microsoft Defender does not appear to be available: $_" -Level WARN
+        return $false
+    }
+}
+
+# -------------------------------------------------------------------
+# System Restore checkpoint (best effort)
+# -------------------------------------------------------------------
+function Invoke-RestoreCheckpoint {
+    Write-Log "Creating System Restore checkpoint (best effort)..." -Level STEP
+    try {
+        Checkpoint-Computer -Description 'Before Shortcut Virus Remover' `
+                            -RestorePointType MODIFY_SETTINGS `
+                            -ErrorAction Stop
+        Write-Log "Restore point created." -Level OK
+    } catch {
+        Write-Log "Restore point not created (Windows throttles to 1/24h or System Protection is off): $_" -Level WARN
+    }
+}
+
+# -------------------------------------------------------------------
+# Detection
+# -------------------------------------------------------------------
+function Get-MaliciousServices {
+    Get-CimInstance Win32_Service -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match $IocNamePattern }
+}
+
+function Get-MaliciousDlls {
+    Get-ChildItem -LiteralPath 'C:\Windows\System32' -Filter 'u*.dll' -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match $IocDllPattern }
+}
+
+# -------------------------------------------------------------------
+# Consolidated confirmation prompt with 10s auto-Yes timeout
+# (the EXE intentionally does NOT pass -Force - the prompt only
+# appears when there is actually something to remove)
+# -------------------------------------------------------------------
+function Confirm-Cleanup {
+    param(
+        [Parameter(Mandatory)] [string[]]$Findings,
+        [int]$TimeoutSeconds = 10
+    )
+
+    if (-not $Findings -or $Findings.Count -eq 0) { return $true }
+
+    Write-Host ""
+    Write-Host ("  The tool found {0} threat(s) on this PC:" -f $Findings.Count) -ForegroundColor Yellow
+    foreach ($f in $Findings) {
+        Write-Host ("    - {0}" -f $f) -ForegroundColor Yellow
+    }
+    Write-Host ("  Continue? [Y/n] (auto-Yes in $TimeoutSeconds seconds): ") -ForegroundColor Cyan -NoNewline
+
+    $start = Get-Date
+    $line  = ''
+    $canPoll = $true
+    try { $null = [Console]::KeyAvailable } catch { $canPoll = $false }
+
+    if (-not $canPoll) {
+        Write-Host ""
+        Write-Log "Non-interactive host - auto-accepting cleanup." -Level INFO
+        return $true
+    }
+
+    while ($true) {
+        if ([Console]::KeyAvailable) {
+            $key = [Console]::ReadKey($true)
+            if ($key.Key -eq 'Enter') {
+                Write-Host ""
+                break
+            } elseif ($key.Key -eq 'Backspace') {
+                if ($line.Length -gt 0) {
+                    $line = $line.Substring(0, $line.Length - 1)
+                    Write-Host "`b `b" -NoNewline
+                }
+            } else {
+                $line += $key.KeyChar
+                Write-Host $key.KeyChar -NoNewline
+            }
+        }
+        if (((Get-Date) - $start).TotalSeconds -ge $TimeoutSeconds) {
+            Write-Host ""
+            Write-Log "No response in $TimeoutSeconds seconds - auto-accepting cleanup." -Level INFO
+            return $true
+        }
+        Start-Sleep -Milliseconds 75
+    }
+
+    $answer = $line.Trim().ToLowerInvariant()
+    if ($answer -eq '' -or $answer -eq 'y' -or $answer -eq 'yes') {
+        return $true
+    }
+    Write-Log "User declined cleanup. Aborting." -Level WARN
+    return $false
+}
+
+# -------------------------------------------------------------------
+# Stop running malware processes
 # -------------------------------------------------------------------
 function Stop-MaliciousProcesses {
     Write-Log "Looking for live malware processes..." -Level STEP
@@ -191,20 +336,17 @@ function Stop-MaliciousProcesses {
 }
 
 # -------------------------------------------------------------------
-# Step 2: Remove malicious services
+# Remove malicious services
 # -------------------------------------------------------------------
 function Remove-MaliciousServices {
-    Write-Log "Scanning Windows services for malware pattern '$IocNamePattern'..." -Level STEP
+    param([object[]]$Services)
 
-    $services = Get-CimInstance Win32_Service -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match $IocNamePattern }
-
-    if (-not $services) {
-        Write-Log "No malicious services found." -Level OK
+    if (-not $Services -or $Services.Count -eq 0) {
+        Write-Log "No malicious services to remove." -Level OK
         return
     }
 
-    foreach ($svc in $services) {
+    foreach ($svc in $Services) {
         Write-Log ("Found service: name={0} state={1} startmode={2} path={3}" -f `
             $svc.Name, $svc.State, $svc.StartMode, $svc.PathName) -Level WARN
 
@@ -229,37 +371,112 @@ function Remove-MaliciousServices {
 }
 
 # -------------------------------------------------------------------
-# Step 3: Remove malicious DLLs in System32
+# Quarantine malicious DLLs (instead of straight deletion)
 # -------------------------------------------------------------------
-function Remove-MaliciousDlls {
-    Write-Log "Scanning C:\Windows\System32 for malicious DLLs..." -Level STEP
+function Quarantine-MaliciousDlls {
+    param(
+        [object[]]$Dlls,
+        [Parameter(Mandatory)] [string]$QuarantineRoot
+    )
 
-    $dlls = Get-ChildItem -LiteralPath 'C:\Windows\System32' -Filter 'u*.dll' -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match $IocDllPattern }
-
-    if (-not $dlls) {
-        Write-Log "No malicious DLLs found in System32." -Level OK
+    if (-not $Dlls -or $Dlls.Count -eq 0) {
+        Write-Log "No malicious DLLs to quarantine." -Level OK
         return
     }
 
-    foreach ($dll in $dlls) {
+    if (-not (Test-Path -LiteralPath $QuarantineRoot)) {
+        try { New-Item -ItemType Directory -Path $QuarantineRoot -Force | Out-Null } catch {
+            Write-Log "Could not create quarantine folder $QuarantineRoot : $_" -Level ERROR
+            return
+        }
+    }
+
+    $manifest = New-Object System.Collections.Generic.List[object]
+
+    foreach ($dll in $Dlls) {
         Write-Log ("Found DLL: {0} ({1:N0} bytes, {2})" -f $dll.FullName, $dll.Length, $dll.LastWriteTime) -Level WARN
+
+        try { attrib.exe -h -s -r $dll.FullName 2>$null } catch { }
+
+        $sha256 = $null
+        try { $sha256 = (Get-FileHash -LiteralPath $dll.FullName -Algorithm SHA256 -ErrorAction Stop).Hash } catch {
+            Write-Log "Could not hash $($dll.FullName): $_" -Level WARN
+        }
+
+        $entry = [ordered]@{
+            originalPath  = $dll.FullName
+            name          = $dll.Name
+            sha256        = $sha256
+            size          = $dll.Length
+            lastWriteTime = $dll.LastWriteTime.ToString('o')
+            attributes    = "$($dll.Attributes)"
+            reason        = 'matches IOC ^u\d{6}\.dll$'
+            timestamp     = (Get-Date).ToString('o')
+            quarantinePath = $null
+            method        = $null
+        }
+
+        $destination = Join-Path $QuarantineRoot $dll.Name
         try {
-            attrib.exe -h -s -r $dll.FullName 2>$null
-            Remove-Item -LiteralPath $dll.FullName -Force -ErrorAction Stop
-            Write-Log "Deleted: $($dll.FullName)" -Level OK
+            Move-Item -LiteralPath $dll.FullName -Destination $destination -Force -ErrorAction Stop
+            try {
+                $info = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+                if ($info -and $dll.LastWriteTime) {
+                    $info.LastWriteTime = $dll.LastWriteTime
+                    $info.CreationTime  = $dll.CreationTime
+                }
+            } catch { }
+            try {
+                & icacls.exe $destination '/inheritance:r' '/grant' 'Administrators:F' '/grant' 'SYSTEM:F' 2>$null | Out-Null
+            } catch { }
+            $entry.quarantinePath = $destination
+            $entry.method = 'moved'
+            Write-Log "Quarantined: $($dll.FullName) -> $destination" -Level OK
         } catch {
-            Write-Log "Direct delete failed (file in use): $_" -Level WARN
-            Register-DeleteOnReboot -Path $dll.FullName
+            Write-Log "Direct move failed (file in use): $_" -Level WARN
+            try {
+                $renameTarget = "$($dll.FullName).malware_to_delete"
+                if (Test-Path -LiteralPath $renameTarget) {
+                    Remove-Item -LiteralPath $renameTarget -Force -ErrorAction SilentlyContinue
+                }
+                Rename-Item -LiteralPath $dll.FullName -NewName (Split-Path -Leaf $renameTarget) -Force -ErrorAction Stop
+                Register-DeleteOnReboot -Path $renameTarget
+                $entry.quarantinePath = $renameTarget
+                $entry.method = 'rename-and-delete-on-reboot'
+                Write-Log "Renamed to $renameTarget and scheduled for delete-on-reboot." -Level WARN
+            } catch {
+                Write-Log "Rename fallback also failed: $_" -Level ERROR
+                Register-DeleteOnReboot -Path $dll.FullName
+                $entry.method = 'delete-on-reboot-only'
+            }
+        }
+
+        $manifest.Add([pscustomobject]$entry) | Out-Null
+    }
+
+    if ($manifest.Count -gt 0) {
+        $manifestPath = Join-Path $QuarantineRoot 'quarantine-manifest.json'
+        try {
+            $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+            Write-Log "Wrote quarantine manifest: $manifestPath" -Level OK
+        } catch {
+            Write-Log "Could not write manifest $manifestPath : $_" -Level ERROR
         }
     }
 }
 
 # -------------------------------------------------------------------
-# Step 4: Remove Defender exclusions added by malware
+# Defender exclusion cleanup
 # -------------------------------------------------------------------
 function Clear-MalwareDefenderExclusions {
+    param([bool]$DefenderAlive = $true)
+
     Write-Log "Removing Defender exclusion paths added by malware..." -Level STEP
+
+    if (-not $DefenderAlive) {
+        Write-Log "Defender not available - skipping exclusion cleanup." -Level WARN
+        return
+    }
 
     $candidates = @(
         'C:\Windows\System32',
@@ -280,7 +497,7 @@ function Clear-MalwareDefenderExclusions {
 }
 
 # -------------------------------------------------------------------
-# Step 5: Clean removable drives
+# Removable drive cleanup
 # -------------------------------------------------------------------
 function Clear-RemovableDrive {
     param([Parameter(Mandatory)] [string]$DriveRoot)
@@ -368,9 +585,10 @@ function Clear-AllRemovableDrives {
 }
 
 # -------------------------------------------------------------------
-# Step 6: Hardening
+# Hardening
 # -------------------------------------------------------------------
 function Invoke-Hardening {
+    param([bool]$DefenderAlive = $true)
     Write-Log "Applying hardening settings..." -Level STEP
 
     $explorerKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
@@ -383,8 +601,13 @@ function Invoke-Hardening {
     if (Test-Path $advKey) {
         Set-ItemProperty -Path $advKey -Name 'Hidden'          -Type DWord -Value 1 -Force
         Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 0 -Force
-        Set-ItemProperty -Path $advKey -Name 'HideFileExt'    -Type DWord -Value 0 -Force
+        Set-ItemProperty -Path $advKey -Name 'HideFileExt'     -Type DWord -Value 0 -Force
         Write-Log "Explorer set to show hidden files and extensions, while keeping protected Windows files hidden." -Level OK
+    }
+
+    if (-not $DefenderAlive) {
+        Write-Log "Defender not available - skipping ASR rule activation." -Level WARN
+        return
     }
 
     try {
@@ -416,23 +639,45 @@ Start-Sleep -Seconds 3
 Write-Host ""
 
 "--- Run started $(Get-Date -Format s) (one-click installer) ---" |
-    Add-Content -LiteralPath $LogPath -ErrorAction SilentlyContinue
-Write-Log "Log file: $LogPath" -Level INFO
+    Add-Content -LiteralPath $script:LogPathResolved -ErrorAction SilentlyContinue
+Write-Log "Log file: $($script:RuntimePaths.LogFile)" -Level INFO
+Write-Log "Quarantine root: $($script:RuntimePaths.QuarantineDir)" -Level INFO
 Write-Log "Base directory: $BaseDir" -Level INFO
 
 $summary = [ordered]@{
-    HostCleaned       = $false
-    UsbCleaned        = $false
-    HardeningApplied  = $false
+    HostCleaned        = $false
+    UsbCleaned         = $false
+    HardeningApplied   = $false
     DefenderScanQueued = $false
+    QuarantinePath     = $null
 }
 
+$defenderAlive = Test-DefenderAlive
+Write-Log "Microsoft Defender alive: $defenderAlive" -Level INFO
+
+Invoke-RestoreCheckpoint
+
 try {
-    Stop-MaliciousProcesses
-    Remove-MaliciousServices
-    Remove-MaliciousDlls
-    Clear-MalwareDefenderExclusions
-    $summary.HostCleaned = $true
+    Write-Log "Detecting host threats..." -Level STEP
+    $services = @(Get-MaliciousServices)
+    $dlls     = @(Get-MaliciousDlls)
+
+    $findings = @()
+    foreach ($s in $services) { $findings += "Service: $($s.Name) (will be stopped and removed)" }
+    foreach ($d in $dlls)     { $findings += "DLL: $($d.FullName) (will be quarantined)" }
+
+    if (-not (Confirm-Cleanup -Findings $findings)) {
+        Write-Log "User declined - skipping host cleanup." -Level WARN
+    } else {
+        Stop-MaliciousProcesses
+        Remove-MaliciousServices -Services $services
+        if ($dlls.Count -gt 0) {
+            Quarantine-MaliciousDlls -Dlls $dlls -QuarantineRoot $script:RuntimePaths.QuarantineDir
+            $summary.QuarantinePath = $script:RuntimePaths.QuarantineDir
+        }
+        Clear-MalwareDefenderExclusions -DefenderAlive $defenderAlive
+        $summary.HostCleaned = $true
+    }
 } catch {
     Write-Log "Host cleanup error: $_" -Level ERROR
 }
@@ -445,19 +690,23 @@ try {
 }
 
 try {
-    Invoke-Hardening
+    Invoke-Hardening -DefenderAlive $defenderAlive
     $summary.HardeningApplied = $true
 } catch {
     Write-Log "Hardening error: $_" -Level ERROR
 }
 
-Write-Log "Triggering Defender Quick Scan in the background..." -Level STEP
-try {
-    Start-Job -ScriptBlock { Start-MpScan -ScanType QuickScan } | Out-Null
-    $summary.DefenderScanQueued = $true
-    Write-Log "Defender Quick Scan started in background." -Level OK
-} catch {
-    Write-Log "Could not start Defender Quick Scan: $_" -Level WARN
+if ($defenderAlive) {
+    Write-Log "Triggering Defender Quick Scan in the background..." -Level STEP
+    try {
+        Start-Job -ScriptBlock { Start-MpScan -ScanType QuickScan } | Out-Null
+        $summary.DefenderScanQueued = $true
+        Write-Log "Defender Quick Scan started in background." -Level OK
+    } catch {
+        Write-Log "Could not start Defender Quick Scan: $_" -Level WARN
+    }
+} else {
+    Write-Log "Skipping Defender Quick Scan (Defender unavailable)." -Level WARN
 }
 
 Write-Host ""
@@ -470,11 +719,16 @@ Write-Host ("    USB drive cleanup .... {0}" -f ($(if ($summary.UsbCleaned)     
 Write-Host ("    Hardening applied .... {0}" -f ($(if ($summary.HardeningApplied)  { 'OK' } else { 'FAILED' }))) -ForegroundColor White
 Write-Host ("    Defender quick scan .. {0}" -f ($(if ($summary.DefenderScanQueued){ 'queued' } else { 'skipped' }))) -ForegroundColor White
 Write-Host ""
+if ($summary.QuarantinePath) {
+    Write-Host ("    Quarantined items in: {0}" -f $summary.QuarantinePath) -ForegroundColor Cyan
+    Write-Host  "    (See quarantine-manifest.json there if you need to restore a false positive.)" -ForegroundColor Gray
+    Write-Host ""
+}
 Write-Host "  Recommended next steps:" -ForegroundColor Yellow
 Write-Host "    1. Reboot the PC if any DLL was scheduled for delete-on-reboot." -ForegroundColor Yellow
 Write-Host "    2. Run a full Microsoft Defender Offline Scan for extra safety." -ForegroundColor Yellow
 Write-Host "    3. After copying your files off the USB, format the USB drive." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Detailed log: $LogPath" -ForegroundColor Gray
+Write-Host "  Detailed log: $($script:RuntimePaths.LogFile)" -ForegroundColor Gray
 
 Wait-ForUserExit -ExitCode 0
