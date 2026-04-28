@@ -156,6 +156,7 @@ $IocNamePattern    = '^u\d{4,}$'
 $IocDllPattern     = '^u\d{4,}\.dll$'
 $IocScriptPattern  = '^u\d{4,}\.(vbs|bat|cmd|js|jse|wsf|dat|bin)$'
 $IocPayloadFolders = @('sysvolume', 'sysvolume.x86', 'systemvolume')
+$ProtectedWindowsFolders = @('system volume information', '$recycle.bin')
 $SuspiciousExtsRoot = @('.lnk', '.vbs', '.vbe', '.bat', '.cmd',
                         '.js',  '.jse', '.wsf', '.scr', '.exe', '.hta')
 
@@ -322,11 +323,19 @@ function Clear-RemovableDrive {
                      Where-Object {
                         ($_.Attributes -band [IO.FileAttributes]::Hidden) -and
                         ($_.Attributes -band [IO.FileAttributes]::System) -and
-                        ($IocPayloadFolders -notcontains $_.Name.ToLower())
+                        ($IocPayloadFolders -notcontains $_.Name.ToLower()) -and
+                        ($ProtectedWindowsFolders -notcontains $_.Name.ToLower())
                      }
     foreach ($f in $hiddenFolders) {
         Write-Log "Unhiding folder: $($f.FullName)" -Level OK
         attrib.exe -h -s $f.FullName /S /D 2>$null
+    }
+
+    foreach ($protectedFolderName in @('System Volume Information', '$RECYCLE.BIN')) {
+        $protectedFolder = Join-Path $DriveRoot $protectedFolderName
+        if (Test-Path -LiteralPath $protectedFolder) {
+            attrib.exe +h +s $protectedFolder 2>$null
+        }
     }
 
     $deepSuspicious = Get-ChildItem -LiteralPath $DriveRoot -Recurse -File -Force -ErrorAction SilentlyContinue |
