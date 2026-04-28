@@ -54,4 +54,6 @@ jobs:
 
             Developed by Youssef Fathy under Widescreen company.
 
+            Open-source Windows tool for removing USB shortcut virus, fake .lnk shortcuts, hidden sysvolume payloads, Trojan:PowerShell/Runner.PGRA!MTB, and Trojan:BAT/Runner.PGRD!MTB.
+
             Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".

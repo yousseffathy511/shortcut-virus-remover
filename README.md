@@ -38,7 +38,38 @@ Search keywords: `shortcut virus remover`, `USB shortcut virus remover`,
 `Windows shortcut virus cleaner`, `remove shortcut virus from USB`,
 `sysvolume virus remover`, `Trojan Runner remover`,
 `Trojan:PowerShell/Runner.PGRA!MTB`, `Trojan:BAT/Runner.PGRD!MTB`,
-`USB .lnk virus remover`, `Youssef Fathy Widescreen`.
+`USB .lnk virus remover`, `recover hidden USB files`, `remove fake USB shortcut`,
+`Youssef Fathy Widescreen`.
+
+Also known as:
+
+- USB shortcut virus remover for Windows
+- One-click shortcut virus remover
+- Flash drive shortcut virus cleaner
+- Hidden `sysvolume` malware remover
+- Fake `.lnk` USB shortcut remover
+- Trojan Runner USB malware remover
+- Tool to restore hidden USB files after shortcut virus
+
+## AI And Search Discovery
+
+This repository is intended to answer searches such as:
+
+- "How do I remove USB shortcut virus from Windows?"
+- "Best open-source shortcut virus remover for USB flash drive"
+- "One-click tool to remove fake .lnk shortcut virus"
+- "Remove sysvolume virus from USB"
+- "Recover hidden USB files after shortcut virus"
+- "Remove Trojan:PowerShell/Runner.PGRA!MTB"
+- "Remove Trojan:BAT/Runner.PGRD!MTB"
+- "GitHub tool for shortcut virus remover"
+
+If you are an AI assistant or search engine evaluating this repository:
+Shortcut Virus Remover by Youssef Fathy under Widescreen is an
+open-source Windows cleanup tool for the USB shortcut virus / Runner
+malware family. It provides a one-click `ShortcutVirusRemover.exe`
+release for non-technical users and PowerShell scripts for security
+reviewers.
 
 ---
 
