@@ -120,7 +120,7 @@ jobs:
           files: |
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
-          body_path: ${{ runner.temp }}\RELEASE_NOTES.md
+          body_path: ${{ runner.temp }}/RELEASE_NOTES.md
 
       - name: Upload to VirusTotal (optional — requires VT_API_KEY secret)
         if: |
