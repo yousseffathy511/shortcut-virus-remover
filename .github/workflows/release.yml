@@ -1,0 +1,55 @@
+name: Build release executable
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to stamp into the executable
+        required: false
+        default: 1.0.0
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'push' -and '${{ github.ref_type }}' -eq 'tag') {
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+          } else {
+            $version = '${{ inputs.version }}'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build ShortcutVirusRemover.exe
+        shell: pwsh
+        run: |
+          ./Build-Exe.ps1 -Version '${{ steps.version.outputs.version }}'
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShortcutVirusRemover
+          path: dist/ShortcutVirusRemover.exe
+
+      - name: Publish GitHub release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ShortcutVirusRemover.exe
+          body: |
+            Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.
+
+            Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".

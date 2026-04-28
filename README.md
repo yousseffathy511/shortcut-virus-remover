@@ -31,10 +31,30 @@ shortcut is bait.
 
 That's it. No installation, no PowerShell required.
 
+Do **not** download the source code ZIP if you just want to clean your
+computer. The source code is for developers and security reviewers.
+
 > **Windows SmartScreen warning?** The installer is not code-signed,
 > so Windows may say *"Windows protected your PC"* the first time you
 > run it. Click **More info**, then **Run anyway**. This is expected
 > for any free, unsigned tool.
+
+### For maintainers: publishing the `.exe`
+
+This repository builds the one-click executable automatically with
+GitHub Actions.
+
+```powershell
+# Build locally
+.\Build-Exe.ps1
+
+# Publish a new release from git
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+When the tag is pushed, GitHub Actions builds
+`dist\ShortcutVirusRemover.exe` and uploads it to the GitHub Release.
 
 ---
 
