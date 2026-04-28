@@ -46,30 +46,30 @@ jobs:
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
 
-      # Use GitHub CLI for assets instead of softprops/action-gh-release  avoids
-      # "Request body length does not match content-length header" multipart bugs on windows-latest.
+      # GitHub CLI publishes assets; avoids softprops multipart issues on windows-latest.
       - name: Publish GitHub release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_NOTES: |
-            Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.
-
-            Developed by Youssef Fathy under Widescreen company.
-
-            Open-source Windows tool for removing USB shortcut virus, fake .lnk shortcuts, hidden sysvolume payloads, Trojan:PowerShell/Runner.PGRA!MTB, and Trojan:BAT/Runner.PGRD!MTB.
-
-            A SHA-256 checksum file is attached so users can verify the downloaded executable.
-
-            Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".
         run: |
           $repo = '${{ github.repository }}'
           $tag = '${{ github.ref_name }}'
           $exe = Join-Path 'dist' 'ShortcutVirusRemover.exe'
           $sha = Join-Path 'dist' 'ShortcutVirusRemover.exe.sha256'
           $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
-          $env:RELEASE_NOTES.Trim() | Set-Content -LiteralPath $notesFile -Encoding utf8
+          $notes = @(
+            'Download ShortcutVirusRemover.exe, double-click it, and approve the Windows UAC prompt.'
+            ''
+            'Developed by Youssef Fathy under Widescreen company.'
+            ''
+            'Open-source Windows tool for removing USB shortcut virus, fake .lnk shortcuts, hidden sysvolume payloads, Trojan:PowerShell/Runner.PGRA!MTB, and Trojan:BAT/Runner.PGRD!MTB.'
+            ''
+            'A SHA-256 checksum file is attached so users can verify the downloaded executable.'
+            ''
+            'Windows SmartScreen may warn because the executable is not code-signed. Click "More info", then "Run anyway".'
+          ) -join [Environment]::NewLine
+          $notes | Set-Content -LiteralPath $notesFile -Encoding utf8
 
           gh release view $tag --repo $repo 2>$null
           if ($LASTEXITCODE -eq 0) {
