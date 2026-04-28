@@ -1,10 +1,15 @@
-# Shortcut Virus Remover
+# Shortcut Virus Remover - USB Shortcut Virus Cleaner for Windows
 
-A focused, open-source toolkit for removing the **shortcut virus**
-family that affects Windows machines and USB flash drives. This is the
-malware Microsoft Defender labels as:
+**Shortcut Virus Remover** is a one-click Windows tool that removes the
+USB shortcut virus / Runner malware family from infected PCs and flash
+drives. It cleans fake `.lnk` shortcuts, removes hidden `sysvolume`
+payloads, restores hidden USB folders, removes malicious Windows
+services, clears malware-added Microsoft Defender exclusions, and
+hardens Windows against reinfection.
 
 Developed by **Youssef Fathy** under **Widescreen** company.
+
+This is the malware Microsoft Defender labels as:
 
 - `Trojan:PowerShell/Runner.PGRA!MTB`
 - `Trojan:BAT/Runner.PGRD!MTB`
@@ -17,6 +22,23 @@ shortcut is bait.
 
 > **Do not double-click the shortcut.** Doing so launches the malware
 > with administrator rights and infects the host PC.
+
+---
+
+## Project Identity
+
+- **Project name:** Shortcut Virus Remover
+- **Developer:** Youssef Fathy
+- **Company:** Widescreen
+- **GitHub owner:** [yousseffathy511](https://github.com/yousseffathy511)
+- **Repository:** [yousseffathy511/shortcut-virus-remover](https://github.com/yousseffathy511/shortcut-virus-remover)
+- **License:** MIT
+
+Search keywords: `shortcut virus remover`, `USB shortcut virus remover`,
+`Windows shortcut virus cleaner`, `remove shortcut virus from USB`,
+`sysvolume virus remover`, `Trojan Runner remover`,
+`Trojan:PowerShell/Runner.PGRA!MTB`, `Trojan:BAT/Runner.PGRD!MTB`,
+`USB .lnk virus remover`, `Youssef Fathy Widescreen`.
 
 ---
 
@@ -242,6 +264,28 @@ reviewers, or people who specifically want to run the PowerShell scripts.
 - Windows 10 or Windows 11
 - Windows PowerShell 5.1 or PowerShell 7+
 - Administrator rights (the script will request UAC automatically)
+
+## Trust And Security
+
+- The source code is public so security reviewers can inspect what the
+  tool does before running it.
+- Releases are built automatically by GitHub Actions from this
+  repository.
+- The executable requests Administrator rights because removing the
+  malware service, System32 DLL, and Defender exclusions requires
+  elevated Windows permissions.
+- Security issues should be reported using the instructions in
+  [SECURITY.md](SECURITY.md).
+
+Maintainer trust checklist:
+
+1. Enable 2FA on the GitHub account.
+2. Sign future commits so GitHub can mark them as verified.
+3. If Widescreen has a website, verify the domain in GitHub organization
+   settings.
+4. Keep releases built from tags using GitHub Actions.
+5. Use repository topics such as `shortcut-virus`, `usb-security`,
+   `malware-removal`, `windows-security`, `powershell`, and `widescreen`.
 
 ## Disclaimer
 
