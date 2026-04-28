@@ -71,14 +71,3 @@ jobs:
 
             Developed by Youssef Fathy / Widescreen.
           prerelease: false
-
-      - name: VirusTotal upload (optional, needs VT_API_KEY secret)
-        if: ${{ github.ref_type == 'tag' && github.event_name == 'push' && secrets.VT_API_KEY != '' }}
-        uses: crazy-max/ghaction-virustotal@93ce6fb8ca09fed3d3d2010a8be65552ae5d3854 # v4.1.0
-        with:
-          vt_api_key: ${{ secrets.VT_API_KEY }}
-          files: |
-            dist/ShortcutVirusRemover.exe
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          update_release_body: true
-          request_rate: '0'
