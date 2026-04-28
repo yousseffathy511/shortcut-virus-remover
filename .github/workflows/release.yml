@@ -1,9 +1,3 @@
-# Build ShortcutVirusRemover.exe on every tag push (v*) or manual dispatch.
-# Tagged releases also: attest build provenance (SLSA-style), publish GitHub
-# Release with EXE + checksum, and (optionally) upload to VirusTotal.
-#
-# Actions are pinned to full commit SHAs.
-
 name: Build release executable
 
 on:
@@ -12,16 +6,13 @@ on:
       version:
         description: Version to stamp into the executable
         required: false
-        default: '1.0.6'
-
+        default: '1.0.7'
   push:
     tags:
       - 'v*'
 
 permissions:
   contents: write
-  attestations: write
-  id-token: write
 
 jobs:
   build:
@@ -55,12 +46,6 @@ jobs:
           $h = ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash).ToLowerInvariant()
           echo "exe_sha256=$h" >> $env:GITHUB_OUTPUT
 
-      - name: Attest build provenance (tag builds only)
-        if: github.event_name == 'push' && github.ref_type == 'tag'
-        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
-        with:
-          subject-path: dist/ShortcutVirusRemover.exe
-
       - name: Upload build artifact
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
@@ -69,50 +54,6 @@ jobs:
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
 
-      - name: Write GitHub Release notes
-        if: github.event_name == 'push' && github.ref_type == 'tag'
-        shell: pwsh
-        env:
-          REF_NAME: ${{ github.ref_name }}
-          COMMIT_FULL: ${{ github.sha }}
-          REPO_FULL: ${{ github.repository }}
-          EXE_HASH: ${{ steps.hash.outputs.exe_sha256 }}
-        run: |
-          $notes = Join-Path $env:RUNNER_TEMP 'RELEASE_NOTES.md'
-          $short = $env:COMMIT_FULL.Substring(0, [Math]::Min(7, $env:COMMIT_FULL.Length))
-
-          @"
-          ## $($env:REF_NAME)
-
-          Shortcut Virus Remover removes the USB shortcut-virus / Trojan:* / Runner malware family from Windows PCs and removable drives.
-
-          ### EXE checksum (EXE SHA-256)
-
-          $($env:EXE_HASH)
-
-          A matching **`ShortcutVirusRemover.exe.sha256`** checksum file is attached below.
-
-          ### Source revision
-
-          - Full commit SHA: ``$($env:COMMIT_FULL)``
-          - Short SHA: ``$short``
-
-          ### Verify before you run
-
-          ```powershell
-          Get-FileHash .\ShortcutVirusRemover.exe -Algorithm SHA256
-          gh attestation verify .\ShortcutVirusRemover.exe --repo $($env:REPO_FULL)
-          ```
-
-          When the **`VT_API_KEY`** repository secret is configured, CI uploads this build to VirusTotal and appends analyzer links automatically.
-
-          ### SmartScreen note
-
-          This `.exe` is not yet commercially code-signed. Prefer **Right-click → Properties → Unblock**. If SmartScreen warns, verify the hashes above match first.
-
-          Developed by **Youssef Fathy / Widescreen**.
-          "@ | Set-Content -LiteralPath $notes -Encoding utf8
-
       - name: Publish GitHub release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabced41ab8bb048 # v2.2.0
@@ -120,13 +61,19 @@ jobs:
           files: |
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
-          body_path: ${{ runner.temp }}/RELEASE_NOTES.md
+          body: |
+            Shortcut Virus Remover - built from commit ${{ github.sha }}.
 
-      - name: Upload to VirusTotal (optional — requires VT_API_KEY secret)
-        if: |
-          github.event_name == 'push' &&
-          github.ref_type == 'tag' &&
-          '${{ secrets.VT_API_KEY }}' != ''
+            EXE SHA-256 (verify with Get-FileHash):
+            ${{ steps.hash.outputs.exe_sha256 }}
+
+            A checksum file ShortcutVirusRemover.exe.sha256 is attached.
+
+            Developed by Youssef Fathy / Widescreen.
+          prerelease: false
+
+      - name: VirusTotal upload (optional, needs VT_API_KEY secret)
+        if: ${{ github.ref_type == 'tag' && github.event_name == 'push' && secrets.VT_API_KEY != '' }}
         uses: crazy-max/ghaction-virustotal@93ce6fb8ca09fed3d3d2010a8be65552ae5d3854 # v4.1.0
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
