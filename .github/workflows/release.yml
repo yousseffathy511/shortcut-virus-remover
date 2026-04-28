@@ -61,13 +61,5 @@ jobs:
           files: |
             dist/ShortcutVirusRemover.exe
             dist/ShortcutVirusRemover.exe.sha256
-          body: |
-            Shortcut Virus Remover - built from commit ${{ github.sha }}.
-
-            EXE SHA-256 (verify with Get-FileHash):
-            ${{ steps.hash.outputs.exe_sha256 }}
-
-            A checksum file ShortcutVirusRemover.exe.sha256 is attached.
-
-            Developed by Youssef Fathy / Widescreen.
+          body: "EXE SHA-256 ${{ steps.hash.outputs.exe_sha256 }} | commit ${{ github.sha }} | Youssef Fathy / Widescreen"
           prerelease: false
