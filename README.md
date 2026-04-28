@@ -199,6 +199,7 @@ itself.
 - Keep AutoRun disabled (`-Harden` does this).
 - Show hidden files and known file extensions in Explorer
   (`-Harden` does this) so a `.vbs` cannot pretend to be a folder.
+  Protected Windows folders such as `System Volume Information` stay hidden.
 - Keep Microsoft Defender's real-time protection on, and review
   `Get-MpPreference | Select ExclusionPath` from time to time. Any
   exclusion of `C:\Windows\System32` or a removable drive is suspicious.

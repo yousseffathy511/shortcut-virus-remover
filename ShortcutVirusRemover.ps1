@@ -310,6 +310,14 @@ function Clear-RemovableDrive {
         } catch { Write-Log "Delete failed: $_" -Level ERROR }
     }
 
+    foreach ($protectedFolderName in @('System Volume Information', '$RECYCLE.BIN')) {
+        $protectedFolder = Join-Path $DriveRoot $protectedFolderName
+        if (Test-Path -LiteralPath $protectedFolder) {
+            attrib.exe +h +s $protectedFolder 2>$null
+            Write-Log "Kept Windows system folder in place and hidden: $protectedFolder" -Level INFO
+        }
+    }
+
     $hiddenFolders = Get-ChildItem -LiteralPath $DriveRoot -Directory -Force -ErrorAction SilentlyContinue |
                      Where-Object {
                         ($_.Attributes -band [IO.FileAttributes]::Hidden) -and
@@ -362,9 +370,9 @@ function Invoke-Hardening {
     $advKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
     if (Test-Path $advKey) {
         Set-ItemProperty -Path $advKey -Name 'Hidden'          -Type DWord -Value 1 -Force
-        Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 1 -Force
+        Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 0 -Force
         Set-ItemProperty -Path $advKey -Name 'HideFileExt'    -Type DWord -Value 0 -Force
-        Write-Log "Explorer set to show hidden files and known extensions (current user)." -Level OK
+        Write-Log "Explorer set to show hidden files and extensions, while keeping protected Windows files hidden." -Level OK
     }
 
     try {

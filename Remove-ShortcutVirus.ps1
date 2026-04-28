@@ -345,6 +345,16 @@ function Clear-RemovableDrive {
         }
     }
 
+    foreach ($protectedFolderName in @('System Volume Information', '$RECYCLE.BIN')) {
+        $protectedFolder = Join-Path $DriveRoot $protectedFolderName
+        if (Test-Path -LiteralPath $protectedFolder) {
+            if ($PSCmdlet.ShouldProcess($protectedFolder, "Keep Windows system folder hidden")) {
+                attrib.exe +h +s $protectedFolder 2>$null
+                Write-Log "Kept Windows system folder in place and hidden: $protectedFolder" -Level INFO
+            }
+        }
+    }
+
     # 5c. Unhide every hidden+system top-level folder so the user can see their data
     $hiddenFolders = Get-ChildItem -LiteralPath $DriveRoot -Directory -Force -ErrorAction SilentlyContinue |
                      Where-Object {
@@ -403,13 +413,13 @@ function Invoke-Hardening {
     Set-ItemProperty -Path $explorerKey -Name 'NoAutorun'          -Type DWord -Value 1     -Force
     Write-Log "AutoRun disabled for all drives." -Level OK
 
-    # Show hidden files + system files + extensions in Explorer for the current user
+    # Show normal hidden files + extensions, but keep protected Windows files hidden.
     $advKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
     if (Test-Path $advKey) {
         Set-ItemProperty -Path $advKey -Name 'Hidden'      -Type DWord -Value 1 -Force # show hidden
-        Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 1 -Force # show OS hidden
+        Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 0 -Force # hide protected OS files
         Set-ItemProperty -Path $advKey -Name 'HideFileExt' -Type DWord -Value 0 -Force # show extensions
-        Write-Log "Explorer set to show hidden files and known extensions (current user)." -Level OK
+        Write-Log "Explorer set to show hidden files and extensions, while keeping protected Windows files hidden." -Level OK
     }
 
     # Defender ASR rule: block JavaScript/VBScript launching downloaded executable content

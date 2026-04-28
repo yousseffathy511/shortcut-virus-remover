@@ -42,13 +42,13 @@ Set-ItemProperty -Path $explorerKey -Name 'NoDriveTypeAutoRun' -Type DWord -Valu
 Set-ItemProperty -Path $explorerKey -Name 'NoAutorun'          -Type DWord -Value 1     -Force
 Write-Host "  [OK] AutoRun disabled for all drive types." -ForegroundColor Green
 
-# ----- Show hidden / system files and known extensions for current user -----
+# ----- Show hidden files and known extensions for current user -----
 $advKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 if (Test-Path $advKey) {
     Set-ItemProperty -Path $advKey -Name 'Hidden'          -Type DWord -Value 1 -Force
-    Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 1 -Force
+    Set-ItemProperty -Path $advKey -Name 'ShowSuperHidden' -Type DWord -Value 0 -Force
     Set-ItemProperty -Path $advKey -Name 'HideFileExt'     -Type DWord -Value 0 -Force
-    Write-Host "  [OK] Explorer set to show hidden files and extensions." -ForegroundColor Green
+    Write-Host "  [OK] Explorer set to show hidden files and extensions, while protected Windows files stay hidden." -ForegroundColor Green
 }
 
 # ----- Microsoft Defender Attack Surface Reduction rules -----
